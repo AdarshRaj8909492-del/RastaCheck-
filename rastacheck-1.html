@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RastaCheck — Community Road Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --asphalt-950:#15161a;
+    --asphalt-900:#1b1c20;
+    --asphalt-800:#232427;
+    --asphalt-700:#2e3033;
+    --asphalt-600:#3a3d42;
+    --lane:#f4b400;
+    --green:#2fae60;
+    --green-dim:#1f6b3d;
+    --yellow:#f4b400;
+    --red:#e14b4b;
+    --red-dim:#7a2b2b;
+    --chalk:#ece9e3;
+    --steel:#9aa0a8;
+    --steel-dim:#6b7076;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--asphalt-950);
+    color:var(--chalk);
+    font-family:'Inter',sans-serif;
+    line-height:1.5;
+  }
+  h1,h2,h3,.display{
+    font-family:'Oswald',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+    margin:0;
+  }
+  .mono{font-family:'Space Mono',monospace;}
+  a{color:inherit;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+  ::selection{background:var(--lane);color:#15161a;}
+
+  /* ---------- lane divider (signature element) ---------- */
+  .lane-strip{
+    position:relative;
+    height:14px;
+    margin:0;
+    background:repeating-linear-gradient(
+      90deg,
+      var(--asphalt-700) 0px, var(--asphalt-700) 28px,
+      transparent 28px, transparent 46px
+    );
+    overflow:hidden;
+  }
+  .lane-strip::before{
+    content:"";
+    position:absolute;
+    top:6px;left:0;right:0;height:2px;
+    background:repeating-linear-gradient(90deg, var(--lane) 0 24px, transparent 24px 46px);
+    animation:drift 3.5s linear infinite;
+  }
+  @keyframes drift{ from{transform:translateX(0);} to{transform:translateX(-46px);} }
+  @media (prefers-reduced-motion:reduce){ .lane-strip::before{animation:none;} }
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(21,22,26,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--asphalt-700);
+  }
+  .nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 0;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;}
+  .logo .dot{width:12px;height:12px;border-radius:3px;background:var(--lane);transform:rotate(45deg);}
+  .nav-links{display:flex;gap:26px;font-size:14px;color:var(--steel);}
+  .nav-links a{text-decoration:none;transition:color .15s;}
+  .nav-links a:hover{color:var(--chalk);}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 18px;border-radius:6px;border:none;
+    font-family:'Inter';font-weight:600;font-size:14px;cursor:pointer;
+    text-decoration:none;
+  }
+  .btn-primary{background:var(--lane);color:#1b1c20;}
+  .btn-primary:hover{background:#ffc93c;}
+  .btn-ghost{background:transparent;color:var(--chalk);border:1px solid var(--asphalt-600);}
+  .btn-ghost:hover{border-color:var(--steel);}
+  .btn-sm{padding:6px 12px;font-size:12px;border-radius:5px;}
+
+  /* ---------- hero ---------- */
+  .hero{padding:72px 0 40px;}
+  .hero-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:56px;align-items:center;}
+  .eyebrow{color:var(--lane);font-family:'Space Mono';font-size:12px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px;}
+  .hero h1{font-size:52px;line-height:1.04;}
+  .hero p.lede{color:var(--steel);font-size:17px;max-width:46ch;margin-top:18px;}
+  .hero-actions{display:flex;gap:14px;margin-top:30px;}
+
+  .ribbon-card{
+    background:var(--asphalt-800);border:1px solid var(--asphalt-700);
+    border-radius:14px;padding:26px;
+  }
+  .ribbon-track{
+    position:relative;height:6px;border-radius:3px;
+    background:repeating-linear-gradient(90deg, var(--asphalt-600) 0 16px, transparent 16px 28px);
+    margin:36px 8px 30px;
+  }
+  .pin{
+    position:absolute;top:-9px;width:20px;height:20px;border-radius:50%;
+    border:3px solid var(--asphalt-800);cursor:default;
+  }
+  .pin.green{background:var(--green);} .pin.yellow{background:var(--yellow);} .pin.red{background:var(--red);}
+  .legend-row{display:flex;justify-content:space-between;gap:10px;}
+  .legend-chip{flex:1;text-align:center;padding:14px 8px;border-radius:8px;background:var(--asphalt-900);border:1px solid var(--asphalt-700);}
+  .legend-chip .n{font-family:'Space Mono';font-size:26px;font-weight:700;}
+  .legend-chip.green .n{color:var(--green);} .legend-chip.yellow .n{color:var(--yellow);} .legend-chip.red .n{color:var(--red);}
+  .legend-chip .lbl{font-size:11px;color:var(--steel);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;}
+
+  section{padding:60px 0;}
+  .section-head{max-width:60ch;margin-bottom:34px;}
+  .section-head .eyebrow{margin-bottom:10px;}
+  .section-head h2{font-size:30px;}
+  .section-head p{color:var(--steel);margin-top:10px;}
+
+  /* ---------- legend explainer ---------- */
+  .status-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+  .status-card{background:var(--asphalt-800);border:1px solid var(--asphalt-700);border-radius:12px;padding:24px;border-top:4px solid var(--steel);}
+  .status-card.green{border-top-color:var(--green);}
+  .status-card.yellow{border-top-color:var(--yellow);}
+  .status-card.red{border-top-color:var(--red);}
+  .status-card h3{font-size:19px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+  .status-card .swatch{width:14px;height:14px;border-radius:50%;}
+  .status-card.green .swatch{background:var(--green);} .status-card.yellow .swatch{background:var(--yellow);} .status-card.red .swatch{background:var(--red);}
+  .status-card p{color:var(--steel);font-size:14px;margin:0 0 10px;}
+  .status-card .action{font-size:12px;color:var(--chalk);background:var(--asphalt-900);padding:8px 10px;border-radius:6px;font-family:'Space Mono';}
+
+  /* ---------- report form ---------- */
+  .report-grid{display:grid;grid-template-columns:1.2fr 0.8fr;gap:36px;}
+  .card{background:var(--asphalt-800);border:1px solid var(--asphalt-700);border-radius:12px;padding:26px;}
+  label{display:block;font-size:12px;color:var(--steel);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px;}
+  label:first-child{margin-top:0;}
+  input[type=text],textarea,select{
+    width:100%;background:var(--asphalt-900);border:1px solid var(--asphalt-600);color:var(--chalk);
+    border-radius:6px;padding:10px 12px;font-family:'Inter';font-size:14px;
+  }
+  textarea{resize:vertical;min-height:80px;}
+  .severity-picker{display:flex;gap:10px;}
+  .sev-opt{flex:1;text-align:center;padding:10px;border-radius:6px;border:1px solid var(--asphalt-600);cursor:pointer;font-size:13px;font-weight:600;background:var(--asphalt-900);}
+  .sev-opt.green.active{background:var(--green-dim);border-color:var(--green);color:#c9f2d8;}
+  .sev-opt.yellow.active{background:#5c4813;border-color:var(--yellow);color:#ffe6a3;}
+  .sev-opt.red.active{background:var(--red-dim);border-color:var(--red);color:#ffd0d0;}
+  .tips li{color:var(--steel);font-size:13.5px;margin-bottom:10px;}
+
+  /* ---------- feed ---------- */
+  .filters{display:flex;gap:10px;margin-bottom:20px;}
+  .filter-btn{padding:8px 14px;border-radius:20px;border:1px solid var(--asphalt-600);background:transparent;color:var(--steel);font-size:13px;cursor:pointer;font-family:'Inter';font-weight:500;}
+  .filter-btn.active{background:var(--chalk);color:var(--asphalt-950);border-color:var(--chalk);}
+  .feed-item{
+    display:grid;grid-template-columns:14px 1fr auto;gap:16px;align-items:start;
+    background:var(--asphalt-800);border:1px solid var(--asphalt-700);border-radius:10px;
+    padding:18px 20px;margin-bottom:12px;
+  }
+  .status-dot{width:14px;height:14px;border-radius:50%;margin-top:5px;}
+  .status-dot.green{background:var(--green);} .status-dot.yellow{background:var(--yellow);} .status-dot.red{background:var(--red);}
+  .feed-item h4{font-size:16px;margin-bottom:4px;}
+  .feed-item .meta{font-size:12px;color:var(--steel-dim);font-family:'Space Mono';}
+  .feed-item p{font-size:13.5px;color:var(--steel);margin:8px 0 0;}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;font-family:'Space Mono';white-space:nowrap;}
+  .badge.pending{background:var(--asphalt-700);color:var(--steel);}
+  .badge.escalated{background:var(--red-dim);color:#ffd0d0;}
+  .badge.resolved{background:var(--green-dim);color:#c9f2d8;}
+  .alt-route{
+    margin-top:10px;background:var(--asphalt-900);border-left:3px solid var(--red);
+    padding:10px 12px;border-radius:0 6px 6px 0;font-size:13px;
+  }
+  .alt-route b{color:var(--red);}
+  .cred{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--steel-dim);}
+  .cred-bar{flex:1;max-width:120px;height:5px;border-radius:3px;background:var(--asphalt-700);overflow:hidden;}
+  .cred-bar span{display:block;height:100%;background:var(--lane);}
+
+  /* ---------- verification queue ---------- */
+  .verifiers{display:flex;gap:12px;margin-bottom:26px;}
+  .verifier-chip{display:flex;align-items:center;gap:8px;background:var(--asphalt-800);border:1px solid var(--asphalt-700);padding:8px 14px;border-radius:20px;font-size:13px;}
+  .verifier-chip .av{width:24px;height:24px;border-radius:50%;background:var(--asphalt-600);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Space Mono';}
+  .queue-item{background:var(--asphalt-800);border:1px solid var(--asphalt-700);border-radius:10px;padding:20px;margin-bottom:14px;}
+  .vote-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .vote-btn{padding:7px 13px;border-radius:6px;border:1px solid var(--asphalt-600);background:var(--asphalt-900);color:var(--chalk);font-size:12.5px;cursor:pointer;}
+  .vote-btn.bad{border-color:var(--red);} .vote-btn.ok{border-color:var(--green);} .vote-btn.recheck{border-color:var(--yellow);}
+  .vote-btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .vote-status{display:flex;gap:8px;margin-top:12px;font-size:11.5px;font-family:'Space Mono';color:var(--steel-dim);}
+  .vote-status .v{padding:3px 8px;border-radius:4px;background:var(--asphalt-900);}
+  .vote-status .v.bad{color:#ffb3b3;} .vote-status .v.ok{color:#a8f0c0;} .vote-status .v.recheck{color:#ffe6a3;}
+
+  /* ---------- gov dashboard ---------- */
+  .ticket{background:var(--asphalt-800);border:1px solid var(--asphalt-700);border-radius:10px;padding:20px;margin-bottom:14px;}
+  .ticket-head{display:flex;justify-content:space-between;align-items:center;}
+  .ticket-id{font-family:'Space Mono';color:var(--steel-dim);font-size:12px;}
+  .progress{display:flex;margin-top:16px;gap:4px;}
+  .progress .seg{flex:1;height:6px;border-radius:3px;background:var(--asphalt-700);}
+  .progress .seg.done{background:var(--lane);}
+  .progress-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--steel-dim);margin-top:6px;font-family:'Space Mono';text-transform:uppercase;}
+
+  /* ---------- notifications ---------- */
+  .notif{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--asphalt-700);}
+  .notif:last-child{border-bottom:none;}
+  .notif .t{font-family:'Space Mono';font-size:11px;color:var(--steel-dim);white-space:nowrap;padding-top:2px;}
+  .notif .body{font-size:13.5px;}
+  .notif .body b{color:var(--lane);}
+
+  /* ---------- roadmap / suggestions ---------- */
+  .roadmap-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  .roadmap-item{background:var(--asphalt-800);border:1px solid var(--asphalt-700);border-radius:10px;padding:18px;}
+  .roadmap-item h4{font-size:14.5px;margin-bottom:6px;color:var(--lane);}
+  .roadmap-item p{font-size:13px;color:var(--steel);margin:0;}
+
+  footer{padding:40px 0;color:var(--steel-dim);font-size:13px;text-align:center;}
+
+  @media(max-width:860px){
+    .hero-grid,.report-grid,.status-cols,.roadmap-grid{grid-template-columns:1fr;}
+    .hero h1{font-size:36px;}
+    .nav-links{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="logo"><span class="dot"></span> RastaCheck</div>
+    <nav class="nav-links">
+      <a href="#legend">Signal Guide</a>
+      <a href="#feed">Live Spots</a>
+      <a href="#queue">Verification</a>
+      <a href="#gov">Govt Dashboard</a>
+      <a href="#notifications">Notifications</a>
+    </nav>
+    <a href="#report" class="btn btn-primary">Report a road</a>
+  </div>
+</header>
+<div class="lane-strip"></div>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Community road intelligence</div>
+      <h1>Every pothole<br>deserves a paper trail.</h1>
+      <p class="lede">Drivers flag a stretch of road in seconds. A three-person field team verifies it. Confirmed bad roads get escalated straight to the responsible government office — publicly, with a ticket number everyone can track.</p>
+      <div class="hero-actions">
+        <a href="#report" class="btn btn-primary">Report a road</a>
+        <a href="#feed" class="btn btn-ghost">View live spots</a>
+      </div>
+    </div>
+    <div class="ribbon-card">
+      <div class="eyebrow" style="margin-bottom:0;">This week on the network</div>
+      <div class="ribbon-track" id="heroRibbon"></div>
+      <div class="legend-row">
+        <div class="legend-chip green"><div class="n" id="countGreen">0</div><div class="lbl">Green spots</div></div>
+        <div class="legend-chip yellow"><div class="n" id="countYellow">0</div><div class="lbl">Yellow spots</div></div>
+        <div class="legend-chip red"><div class="n" id="countRed">0</div><div class="lbl">Red spots</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="legend">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">How the signal works</div>
+      <h2>Three colors. One clear decision.</h2>
+      <p>Every stretch of road on RastaCheck carries a status, set from resident reports and confirmed by the field verification team.</p>
+    </div>
+    <div class="status-cols">
+      <div class="status-card green">
+        <h3><span class="swatch"></span>Green spot</h3>
+        <p>Surface is in good condition. No meaningful potholes, cracking, or drainage issues reported or found on inspection.</p>
+        <div class="action">Go ahead — no detour needed.</div>
+      </div>
+      <div class="status-card yellow">
+        <h3><span class="swatch"></span>Yellow spot</h3>
+        <p>Manageable but worth caution — patchy surface, minor potholes, or narrowing. Passable, especially in daylight and at moderate speed.</p>
+        <div class="action">Proceed with caution — reduce speed.</div>
+      </div>
+      <div class="status-card red">
+        <h3><span class="swatch"></span>Red / high alert spot</h3>
+        <p>Confirmed unsafe by at least two field verifiers — deep potholes, missing surface, or standing water. Auto-escalated to the government.</p>
+        <div class="action">Avoid — take the suggested alternate route.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="lane-strip"></div>
+
+<section id="report">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">File a report</div>
+      <h2>Seen a bad stretch of road?</h2>
+      <p>Give it a location and your honest read on its condition. It goes into the verification queue for the field team to confirm before anything is escalated.</p>
+    </div>
+    <div class="report-grid">
+      <form class="card" id="reportForm">
+        <label for="road">Road / area name</label>
+        <input type="text" id="road" placeholder="e.g. MG Road, near City Hospital junction" required>
+
+        <label for="desc">What did you see?</label>
+        <textarea id="desc" placeholder="Describe the potholes, cracks, waterlogging, or missing surface" required></textarea>
+
+        <label>Your read on the condition</label>
+        <div class="severity-picker" id="sevPicker">
+          <div class="sev-opt green" data-sev="green">Green — fine</div>
+          <div class="sev-opt yellow" data-sev="yellow">Yellow — manageable</div>
+          <div class="sev-opt red active" data-sev="red">Red — bad</div>
+        </div>
+
+        <label for="alt">Suggested alternate route (optional, used only if confirmed red)</label>
+        <input type="text" id="alt" placeholder="e.g. Use Ring Road via Sector 12 instead">
+
+        <label for="name">Your name</label>
+        <input type="text" id="name" placeholder="How should we credit this report?" required>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:20px;">Submit report</button>
+      </form>
+      <div class="card tips">
+        <h3 style="font-size:15px;margin-bottom:14px;">Makes a report easier to verify</h3>
+        <ul style="padding-left:18px;margin:0;">
+          <li>Name a landmark or junction, not just a road — verifiers need to find it fast.</li>
+          <li>Say whether it's the whole stretch or one specific spot.</li>
+          <li>Mention if it's worse at night, in rain, or during a particular time of day.</li>
+          <li>Reports are shown with your name — false or exaggerated reports affect your credibility score on future reports.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="lane-strip"></div>
+
+<section id="feed">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Live spots</div>
+      <h2>What's on the road right now</h2>
+      <p>Every reported and verified spot, in one place. Red spots carry the alternate route suggested for that stretch.</p>
+    </div>
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="green">Green</button>
+      <button class="filter-btn" data-filter="yellow">Yellow</button>
+      <button class="filter-btn" data-filter="red">Red / high alert</button>
+      <button class="filter-btn" data-filter="pending_review">Pending review</button>
+    </div>
+    <div id="feedList"></div>
+  </div>
+</section>
+
+<div class="lane-strip"></div>
+
+<section id="queue">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Verification team</div>
+      <h2>Three people. One credibility check.</h2>
+      <p>New reports don't get a status until at least two of the three verifiers agree, after checking the location. Two "bad" votes auto-escalates a report to the government dashboard and marks it a red spot.</p>
+    </div>
+    <div class="verifiers">
+      <div class="verifier-chip"><span class="av">RM</span> Verifier — Riya M.</div>
+      <div class="verifier-chip"><span class="av">SK</span> Verifier — Sameer K.</div>
+      <div class="verifier-chip"><span class="av">AT</span> Verifier — Anjali T.</div>
+    </div>
+    <div id="queueList"></div>
+  </div>
+</section>
+
+<div class="lane-strip"></div>
+
+<section id="gov">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Government escalation</div>
+      <h2>Public accountability tracker</h2>
+      <p>Confirmed red spots are filed as tickets to the relevant road authority. Status is public — anyone can see what's been acknowledged, what's in progress, and what's been fixed.</p>
+    </div>
+    <div id="govList"></div>
+  </div>
+</section>
+
+<div class="lane-strip"></div>
+
+<section id="notifications">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Public notification feed</div>
+      <h2>Everyone sees the same timeline</h2>
+      <p>Reporters, verifiers, and the public all get the same updates as a ticket moves.</p>
+    </div>
+    <div class="card" id="notifList" style="padding:6px 26px;"></div>
+  </div>
+</section>
+
+<div class="lane-strip"></div>
+
+<section id="roadmap">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Suggestions to strengthen this</div>
+      <h2>Ideas worth building next</h2>
+    </div>
+    <div class="roadmap-grid">
+      <div class="roadmap-item"><h4>Photo + GPS on every report</h4><p>Require a photo and auto-captured GPS pin instead of typed location — makes verification faster and much harder to fake.</p></div>
+      <div class="roadmap-item"><h4>Reporter credibility score</h4><p>Track each reporter's accuracy over time (confirmed vs. rejected reports) and weight new reports from high-credibility users higher in the queue.</p></div>
+      <div class="roadmap-item"><h4>SLA clock on government tickets</h4><p>Give each severity level a public response-time target (e.g. red spots: acknowledge in 3 days) so delays are visible, not just statuses.</p></div>
+      <div class="roadmap-item"><h4>Route-aware navigation warning</h4><p>Integrate with maps so a red spot automatically triggers a reroute suggestion for anyone navigating through it, not just a listing on the site.</p></div>
+      <div class="roadmap-item"><h4>Duplicate detection</h4><p>Cluster reports within ~100m of each other into one spot so the same pothole isn't logged (and escalated) as five separate tickets.</p></div>
+      <div class="roadmap-item"><h4>Verifier rotation & conflict-of-interest checks</h4><p>Rotate which of the three verifiers reviews which area, and flag if a verifier has a personal connection to a report.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">RastaCheck — a template for community road reporting, verification, and government accountability.</div>
+</footer>
+
+<script>
+let reports = [
+  {id:1, road:"MG Road, near City Hospital", desc:"Deep pothole cluster across both lanes, worse after rain.", reporter:"Aditya P.", credibility:82, sev:"red", alt:"Use Ring Road via Sector 12 instead", status:"escalated", votes:{RM:"bad", SK:"bad", AT:null}, ticketId:"GOV-1042", govStage:2, time:"2 days ago"},
+  {id:2, road:"Lake View Road, Sector 9", desc:"Cracked surface near the school gate, uneven but drivable.", reporter:"Meera S.", credibility:68, sev:"yellow", alt:"", status:"verified_yellow", votes:{RM:"recheck", SK:"ok", AT:"ok"}, ticketId:null, govStage:0, time:"3 days ago"},
+  {id:3, road:"Station Approach Road", desc:"Freshly resurfaced last month, smooth throughout.", reporter:"Farhan I.", credibility:91, sev:"green", alt:"", status:"verified_green", votes:{RM:"ok", SK:"ok", AT:"ok"}, ticketId:null, govStage:0, time:"5 days ago"},
+  {id:4, road:"Canal Road, opposite grain market", desc:"Waterlogged stretch hiding a large pothole, two-wheelers keep skidding.", reporter:"Priya D.", credibility:75, sev:"red", alt:"Take the bypass via Old Mill Road", status:"pending_review", votes:{RM:"bad", SK:null, AT:null}, ticketId:null, govStage:0, time:"6 hours ago"},
+  {id:5, road:"Industrial Area Phase 2", desc:"Loose gravel and a few shallow potholes near the entrance.", reporter:"Karan V.", credibility:59, sev:"yellow", alt:"", status:"pending_review", votes:{RM:null, SK:null, AT:null}, ticketId:null, govStage:0, time:"1 day ago"},
+];
+
+let notifications = [
+  {t:"2 days ago", html:"Ticket <b>GOV-1042</b> (MG Road) acknowledged by Municipal Roads Dept."},
+  {t:"2 days ago", html:"MG Road confirmed a <b>red spot</b> after 2 field verifications."},
+  {t:"5 days ago", html:"Station Approach Road confirmed a <b>green spot</b> — safe to use."},
+];
+
+const stages = ["Submitted","Acknowledged","In progress","Resolved"];
+let nextId = 6;
+let ticketCounter = 1043;
+let activeFilter = "all";
+
+function sevLabel(s){ return {green:"Green spot", yellow:"Yellow spot", red:"Red / high alert"}[s]; }
+
+function render(){
+  renderHero();
+  renderFeed();
+  renderQueue();
+  renderGov();
+  renderNotifications();
+}
+
+function renderHero(){
+  const g = reports.filter(r=>r.sev==="green").length;
+  const y = reports.filter(r=>r.sev==="yellow").length;
+  const rC = reports.filter(r=>r.sev==="red").length;
+  document.getElementById("countGreen").textContent = g;
+  document.getElementById("countYellow").textContent = y;
+  document.getElementById("countRed").textContent = rC;
+  const track = document.getElementById("heroRibbon");
+  track.innerHTML = "";
+  reports.forEach((r,i)=>{
+    const pin = document.createElement("div");
+    pin.className = "pin " + r.sev;
+    pin.style.left = (6 + (i * (88/Math.max(reports.length-1,1)))) + "%";
+    pin.title = r.road;
+    track.appendChild(pin);
+  });
+}
+
+function renderFeed(){
+  const list = document.getElementById("feedList");
+  list.innerHTML = "";
+  const filtered = reports.filter(r=>{
+    if(activeFilter==="all") return true;
+    if(activeFilter==="pending_review") return r.status==="pending_review";
+    return r.sev===activeFilter;
+  });
+  if(filtered.length===0){
+    list.innerHTML = '<p style="color:var(--steel-dim);">No spots match this filter yet.</p>';
+    return;
+  }
+  filtered.forEach(r=>{
+    const badgeClass = r.status==="escalated" ? "escalated" : (r.status==="resolved" ? "resolved" : "pending");
+    const badgeText = r.status==="pending_review" ? "Pending review" : r.status==="escalated" ? "Escalated to govt" : r.status==="resolved" ? "Resolved" : sevLabel(r.sev)+" · verified";
+    const el = document.createElement("div");
+    el.className = "feed-item";
+    el.innerHTML = `
+      <div class="status-dot ${r.sev}"></div>
+      <div>
+        <h4>${r.road}</h4>
+        <div class="meta">reported by ${r.reporter} · ${r.time}</div>
+        <p>${r.desc}</p>
+        <div class="cred">Reporter credibility <div class="cred-bar"><span style="width:${r.credibility}%"></span></div> ${r.credibility}%</div>
+        ${r.sev==="red" && r.alt ? `<div class="alt-route"><b>Suggested alternate:</b> ${r.alt}</div>` : ""}
+      </div>
+      <span class="badge ${badgeClass}">${badgeText}</span>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function renderQueue(){
+  const list = document.getElementById("queueList");
+  list.innerHTML = "";
+  const pending = reports.filter(r=>r.status==="pending_review");
+  if(pending.length===0){
+    list.innerHTML = '<p style="color:var(--steel-dim);">Queue is clear — every report has been verified.</p>';
+    return;
+  }
+  pending.forEach(r=>{
+    const el = document.createElement("div");
+    el.className = "queue-item";
+    const voteEntries = Object.entries(r.votes);
+    const voteStatusHtml = voteEntries.map(([who,v])=>{
+      if(!v) return `<span class="v">${who}: not yet</span>`;
+      const cls = v==="bad" ? "bad" : v==="ok" ? "ok" : "recheck";
+      const label = v==="bad" ? "confirmed bad" : v==="ok" ? "confirmed ok" : "needs recheck";
+      return `<span class="v ${cls}">${who}: ${label}</span>`;
+    }).join("");
+    el.innerHTML = `
+      <h4 style="font-size:15px;margin-bottom:4px;">${r.road}</h4>
+      <div class="meta" style="font-family:'Space Mono';font-size:12px;color:var(--steel-dim);">reporter self-rated: ${sevLabel(r.sev)} · ${r.reporter}</div>
+      <p style="font-size:13.5px;color:var(--steel);margin-top:8px;">${r.desc}</p>
+      <div class="vote-row" data-id="${r.id}">
+        <button class="vote-btn bad" data-verdict="bad">Confirm — road is bad</button>
+        <button class="vote-btn ok" data-verdict="ok">Confirm — road is fine</button>
+        <button class="vote-btn recheck" data-verdict="recheck">Needs a recheck</button>
+      </div>
+      <div class="vote-status">${voteStatusHtml}</div>
+    `;
+    list.appendChild(el);
+  });
+
+  document.querySelectorAll(".vote-row").forEach(row=>{
+    row.querySelectorAll(".vote-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>castVote(Number(row.dataset.id), btn.dataset.verdict));
+    });
+  });
+}
+
+function castVote(id, verdict){
+  const r = reports.find(x=>x.id===id);
+  if(!r) return;
+  const openSlot = Object.keys(r.votes).find(k=>r.votes[k]===null);
+  if(!openSlot) return;
+  r.votes[openSlot] = verdict;
+
+  const cast = Object.values(r.votes).filter(v=>v!==null);
+  const badCount = cast.filter(v=>v==="bad").length;
+  const okCount = cast.filter(v=>v==="ok").length;
+
+  if(badCount>=2){
+    escalate(r);
+  } else if(okCount>=2){
+    r.status = "verified_" + r.sev;
+    if(r.sev==="red") r.sev = okCount>=2 ? "green" : r.sev;
+    addNotification(`${r.road} confirmed a <b>${sevLabel(r.sev).toLowerCase()}</b> by the verification team.`);
+  } else if(cast.length===3){
+    // split decision, keep pending for a manual recheck round but reset votes for a fresh pass
+    r.status = "pending_review";
+  }
+  render();
+}
+
+function escalate(r){
+  r.sev = "red";
+  r.status = "escalated";
+  r.ticketId = "GOV-" + (ticketCounter++);
+  r.govStage = 0;
+  addNotification(`${r.road} confirmed a <b>red spot</b> — filed as ticket <b>${r.ticketId}</b> with the road authority.`);
+}
+
+function renderGov(){
+  const list = document.getElementById("govList");
+  list.innerHTML = "";
+  const tickets = reports.filter(r=>r.ticketId);
+  if(tickets.length===0){
+    list.innerHTML = '<p style="color:var(--steel-dim);">No tickets filed yet — confirmed red spots will appear here automatically.</p>';
+    return;
+  }
+  tickets.forEach(r=>{
+    const el = document.createElement("div");
+    el.className = "ticket";
+    const segs = stages.map((s,i)=>`<div class="seg ${i<=r.govStage ? 'done':''}"></div>`).join("");
+    el.innerHTML = `
+      <div class="ticket-head">
+        <div>
+          <h4 style="font-size:15px;">${r.road}</h4>
+          <div class="ticket-id">${r.ticketId}</div>
+        </div>
+        ${r.govStage < stages.length-1 ? `<button class="btn btn-ghost btn-sm" data-advance="${r.id}">Simulate govt update →</button>` : `<span class="badge resolved">Resolved</span>`}
+      </div>
+      <div class="progress">${segs}</div>
+      <div class="progress-labels">${stages.map(s=>`<span>${s}</span>`).join("")}</div>
+    `;
+    list.appendChild(el);
+  });
+  document.querySelectorAll("[data-advance]").forEach(btn=>{
+    btn.addEventListener("click", ()=>advanceGov(Number(btn.dataset.advance)));
+  });
+}
+
+function advanceGov(id){
+  const r = reports.find(x=>x.id===id);
+  if(!r || r.govStage>=stages.length-1) return;
+  r.govStage++;
+  if(r.govStage===stages.length-1) r.status = "resolved";
+  addNotification(`Ticket <b>${r.ticketId}</b> (${r.road}) moved to <b>${stages[r.govStage]}</b>.`);
+  render();
+}
+
+function addNotification(html){
+  notifications.unshift({t:"just now", html});
+}
+
+function renderNotifications(){
+  const list = document.getElementById("notifList");
+  list.innerHTML = "";
+  notifications.forEach(n=>{
+    const el = document.createElement("div");
+    el.className = "notif";
+    el.innerHTML = `<div class="t">${n.t}</div><div class="body">${n.html}</div>`;
+    list.appendChild(el);
+  });
+}
+
+// filters
+document.querySelectorAll(".filter-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    activeFilter = btn.dataset.filter;
+    renderFeed();
+  });
+});
+
+// severity picker
+let chosenSev = "red";
+document.querySelectorAll(".sev-opt").forEach(opt=>{
+  opt.addEventListener("click", ()=>{
+    document.querySelectorAll(".sev-opt").forEach(o=>o.classList.remove("active"));
+    opt.classList.add("active");
+    chosenSev = opt.dataset.sev;
+  });
+});
+
+// report form
+document.getElementById("reportForm").addEventListener("submit", (e)=>{
+  e.preventDefault();
+  const road = document.getElementById("road").value.trim();
+  const desc = document.getElementById("desc").value.trim();
+  const alt = document.getElementById("alt").value.trim();
+  const name = document.getElementById("name").value.trim();
+  if(!road || !desc || !name) return;
+
+  reports.unshift({
+    id: nextId++,
+    road, desc, reporter:name, credibility:70,
+    sev: chosenSev, alt, status:"pending_review",
+    votes:{RM:null, SK:null, AT:null}, ticketId:null, govStage:0, time:"just now"
+  });
+  addNotification(`New report filed for <b>${road}</b> by ${name} — sent to the verification queue.`);
+  e.target.reset();
+  document.querySelectorAll(".sev-opt").forEach(o=>o.classList.remove("active"));
+  document.querySelector('.sev-opt[data-sev="red"]').classList.add("active");
+  chosenSev = "red";
+  render();
+  document.getElementById("queue").scrollIntoView({behavior:"smooth"});
+});
+
+render();
+</script>
+</body>
+</html>
